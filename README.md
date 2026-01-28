@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Fleet Auth System
 
-## Getting Started
+Full-stack role-based auth powered by:
 
-First, run the development server:
+- **Frontend:** Next.js 16 + App Router + Tailwind
+- **Backend:** Express + MongoDB + JWT + cookie auth
+- **Roles:** `ADMIN` (full control) and `MANAGER` (Excel workflow only)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## Environment
+
+Create a `.env` file in the project root with at least:
+
+```
+MONGO_URI=your-mongodb-connection-string
+JWT_SECRET=super-secret-string
+FRONTEND_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:5000
+PORT=5000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`NEXT_PUBLIC_API_URL` feeds client-side fetch calls, while `FRONTEND_URL` lets the Express server configure CORS + cookies.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+Run both servers in separate terminals:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# 1) Next.js frontend (http://localhost:3000)
+npm run dev
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 2) Express API (http://localhost:5000)
+npm run server
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Backend API
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Method | Route           | Description                            | Access   |
+|--------|-----------------|----------------------------------------|----------|
+| POST   | `/auth/signup`  | Public manager signup (role locked)    | Public   |
+| POST   | `/auth/login`   | Login, issues JWT httpOnly cookie      | Public   |
+| POST   | `/auth/logout`  | Clear auth cookie                      | Auth     |
+| GET    | `/auth/me`      | Returns current user profile           | Auth     |
+| POST   | `/users/create` | Create Admin or Manager                | Admin    |
+| GET    | `/users`        | List all users                         | Admin    |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+JWT payload = `{ id, role }`, valid for 7 days, stored in `token` httpOnly cookie.
+
+---
+
+## Frontend Routes & Guards
+
+- Public: `/`, `/login`, `/signup`
+- Admin only: `/admin/**`, `/create-user`, `/user-list`, `/settings`
+- Manager only: `/manager/**`, `/upload`, `/excel-edit`
+
+`middleware.ts` verifies the JWT on every protected route using the shared `JWT_SECRET`. Users are redirected to `/login` when missing/invalid tokens, or to their own dashboard if they try to hit an unauthorized route.
+
+---
+
+## Role Logic
+
+- **Managers**
+  - Can self-signup
+  - Access Excel upload + edit tools
+- **Admins**
+  - Cannot signup publicly
+  - Must be created by an existing Admin via `/create-user`
+  - Can create Admins/Managers, view roster, manage settings
+
+---
+
+## Next Steps
+
+- Wire upload + Excel edit pages to actual APIs/storage
+- Add analytics for dashboard stats
+- Extend `/settings` to persist platform preferences
+- Introduce email invites + password reset flows
+
+The current codebase already handles secure auth, cookies, route permissions, and UI for both roles—plug in your business logic where indicated. Enjoy! 🎯
+
