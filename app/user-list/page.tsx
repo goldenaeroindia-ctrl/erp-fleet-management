@@ -5,78 +5,194 @@ import Link from "next/link";
 import { API_BASE_URL } from "@/lib/config";
 import type { UserProfile } from "@/types/user";
 
+interface UserWithStats extends UserProfile {
+  fileCount?: number;
+}
+
 export default function UserListPage() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<UserWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/users`, {
-          credentials: "include",
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || "Unable to fetch users");
-        }
-        setUsers(data.users);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to fetch users");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchUsers();
   }, []);
 
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/users`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        throw new Error("Failed to fetch users");
+      }
+
+      const data = await response.json();
+      const usersData = data.users || [];
+
+      // Fetch file counts for each user
+      const usersWithStats = await Promise.all(
+        usersData.map(async (user: UserProfile) => {
+          try {
+            const filesRes = await fetch(`${API_BASE_URL}/api/excel/admin`, {
+              credentials: "include",
+            });
+            if (filesRes.ok) {
+              const filesData = await filesRes.json();
+              const userFiles = filesData.files?.filter(
+                (f: any) => f.owner?.id === user.id
+              ) || [];
+              return { ...user, fileCount: userFiles.length };
+            }
+          } catch (e) {
+            // Ignore errors
+          }
+          return { ...user, fileCount: 0 };
+        })
+      );
+
+      setUsers(usersWithStats);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const adminCount = users.filter((u) => u.role === "ADMIN").length;
+  const managerCount = users.filter((u) => u.role === "MANAGER").length;
+
   return (
-    <div className="min-h-screen bg-white text-black px-4 sm:px-8 py-8" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      <div className="max-w-5xl mx-auto">
-        <header className="mb-8">
-          <p className="text-xs tracking-[0.4em] uppercase text-gray-500" style={{ fontFamily: "Georgia, serif" }}>
-            Admin view
-          </p>
-          <h1 className="text-4xl text-green-800" style={{ fontFamily: "Garamond, serif", fontStyle: "italic", fontWeight: 300 }}>
-            User directory
+    <div className="min-h-screen bg-slate-950 text-slate-50">
+      <header className="border-b border-slate-800 px-4 sm:px-8 py-6">
+        <div className="max-w-7xl mx-auto">
+          <Link
+            href="/admin/dashboard"
+            className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-300 mb-4 transition"
+          >
+            ← Back to Dashboard
+          </Link>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+            User Directory
           </h1>
-          <p className="text-sm text-gray-600">
-            Review every Admin and Manager account currently in the platform.
-          </p>
-          <div className="flex gap-4 text-xs text-green-700 mt-4">
-            <Link href="/admin/dashboard">← Dashboard</Link>
-            <Link href="/create-user">Create new user</Link>
-          </div>
-        </header>
-
-        <div className="bg-gray-50 border-2 border-gray-200 rounded-3xl overflow-hidden">
-          <div className="grid grid-cols-3 text-xs tracking-widest uppercase text-gray-500 bg-white px-4 py-3" style={{ fontFamily: "Georgia, serif" }}>
-            <span>Name</span>
-            <span>Email</span>
-            <span>Role</span>
-          </div>
-
-          {loading && <p className="px-4 py-6 text-sm text-gray-600">Loading users...</p>}
-          {error && <p className="px-4 py-6 text-sm text-red-600">{error}</p>}
-          {!loading && !error && users.length === 0 && (
-            <p className="px-4 py-6 text-sm text-gray-600">No users found yet.</p>
-          )}
-
-          {!loading &&
-            !error &&
-            users.map((user) => (
-              <div key={user.id} className="grid grid-cols-3 px-4 py-4 border-t border-gray-200 text-sm text-gray-700">
-                <span>{user.name}</span>
-                <span className="truncate">{user.email}</span>
-                <span className="font-semibold text-green-700">{user.role}</span>
-              </div>
-            ))}
+          <p className="text-slate-400 mt-2">Manage all Admin and Manager accounts</p>
         </div>
-      </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <p className="text-sm text-slate-400 mb-2">Total Users</p>
+            <p className="text-3xl font-bold text-cyan-400">{users.length}</p>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <p className="text-sm text-slate-400 mb-2">Admins</p>
+            <p className="text-3xl font-bold text-indigo-400">{adminCount}</p>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <p className="text-sm text-slate-400 mb-2">Managers</p>
+            <p className="text-3xl font-bold text-purple-400">{managerCount}</p>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-100">All Users</h2>
+              <p className="text-sm text-slate-400 mt-1">View and manage user accounts</p>
+            </div>
+            <Link
+              href="/create-user"
+              className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white rounded-lg font-medium hover:from-cyan-600 hover:to-indigo-600 transition"
+            >
+              ➕ Create User
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="p-8 text-center text-slate-400">Loading users...</div>
+          ) : users.length === 0 ? (
+            <div className="p-8 text-center text-slate-400">
+              <p>No users found yet.</p>
+              <Link
+                href="/create-user"
+                className="text-cyan-400 hover:text-cyan-300 mt-4 inline-block"
+              >
+                Create the first user
+              </Link>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-800">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Files
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Created
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {users.map((user) => (
+                    <tr key={user.id} className="hover:bg-slate-800/50 transition">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-slate-200">{user.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-300">{user.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.role === "ADMIN"
+                              ? "bg-cyan-500/20 text-cyan-400"
+                              : "bg-indigo-500/20 text-indigo-400"
+                          }`}
+                        >
+                          {user.role === "ADMIN" ? "👑 Admin" : "📊 Manager"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-400">{user.fileCount || 0} files</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-400">
+                          {user.createdAt
+                            ? new Date(user.createdAt).toLocaleDateString()
+                            : "N/A"}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
-
-

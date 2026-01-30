@@ -1,112 +1,261 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { API_BASE_URL } from "@/lib/config";
 
-const quickActions = [
-  {
-    title: "Create Team Member",
-    description: "Provision Admin or Manager accounts instantly.",
-    href: "/create-user",
-  },
-  {
-    title: "User Directory",
-    description: "Review roles, reset access, or disable accounts.",
-    href: "/user-list",
-  },
-  {
-    title: "Control Center",
-    description: "Update platform settings and security policies.",
-    href: "/settings",
-  },
-];
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: "ADMIN" | "MANAGER";
+}
+
+interface ExcelFile {
+  id: string;
+  name: string;
+  headers: string[];
+  rowCount: number;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function AdminDashboardPage() {
-  const { user, loading } = useCurrentUser();
+  const { user, loading: userLoading } = useCurrentUser();
+  const router = useRouter();
+  const [users, setUsers] = useState<User[]>([]);
+  const [files, setFiles] = useState<ExcelFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [usersRes, filesRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/users`, { credentials: "include" }),
+        fetch(`${API_BASE_URL}/api/excel/admin`, { credentials: "include" }),
+      ]);
+
+      if (!usersRes.ok || !filesRes.ok) {
+        if (usersRes.status === 401 || filesRes.status === 401) {
+          router.push("/login");
+          return;
+        }
+        throw new Error("Failed to fetch data");
+      }
+
+      const usersData = await usersRes.json();
+      const filesData = await filesRes.json();
+
+      setUsers(usersData.users || []);
+      setFiles(filesData.files || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = async (fileId: string, fileName: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/excel/${fileId}/download`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to download file");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${fileName}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to download file");
+    }
+  };
+
+  const adminCount = users.filter((u) => u.role === "ADMIN").length;
+  const managerCount = users.filter((u) => u.role === "MANAGER").length;
+  const totalFiles = files.length;
+  const totalRows = files.reduce((sum, f) => sum + f.rowCount, 0);
 
   return (
-    <div className="min-h-screen bg-white text-black" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      <header className="border-b-2 border-gray-300 px-4 sm:px-8 py-4 bg-linear-to-b from-gray-50 to-white flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs tracking-widest text-gray-500 uppercase" style={{ fontFamily: "Georgia, serif" }}>
-            Admin Control
-          </p>
-          <h1 className="text-3xl text-green-800" style={{ fontFamily: "Garamond, serif", fontStyle: "italic", fontWeight: 300 }}>
-            Welcome{user?.name ? `, ${user.name}` : ""} 👑
-          </h1>
-          <p className="text-sm text-gray-600">
-            {loading ? "Loading your access..." : "You can create admins, managers, and oversee all operations."}
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Link
-            href="/"
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition"
-          >
-            Back to site
-          </Link>
-          <SignOutButton />
+    <div className="min-h-screen bg-slate-950 text-slate-50">
+      <header className="border-b border-slate-800 px-4 sm:px-8 py-6">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+              Admin Dashboard
+            </h1>
+            <p className="text-slate-400 mt-1">
+              {userLoading ? "Loading..." : `Welcome, ${user?.name || "Admin"}`}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link
+              href="/"
+              className="px-4 py-2 border border-slate-700 rounded-lg text-sm text-slate-300 hover:bg-slate-800 transition"
+            >
+              Home
+            </Link>
+            <SignOutButton />
+          </div>
         </div>
       </header>
 
-      <main className="px-4 sm:px-8 py-10">
-        <section className="mb-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {quickActions.map((action) => (
-              <Link
-                key={action.title}
-                href={action.href}
-                className="border-2 border-gray-200 rounded-2xl p-6 hover:border-green-500 hover:shadow-md transition bg-gray-50"
-              >
-                <h2
-                  className="text-xl text-green-800 mb-2"
-                  style={{ fontFamily: "Garamond, serif", fontStyle: "italic", fontWeight: 400 }}
-                >
-                  {action.title}
-                </h2>
-                <p className="text-sm text-gray-600">{action.description}</p>
-                <span className="inline-flex items-center gap-2 text-xs text-green-700 mt-4 font-semibold tracking-wide">
-                  OPEN PANEL →
-                </span>
-              </Link>
-            ))}
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+            {error}
           </div>
-        </section>
+        )}
 
-        <section className="border-2 border-gray-200 rounded-3xl p-6 bg-gray-50">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div>
-              <p className="text-xs text-gray-500 tracking-[0.4em] uppercase mb-2">ROLE MATRIX</p>
-              <h3
-                className="text-3xl text-green-900 mb-4"
-                style={{ fontFamily: "Garamond, serif", fontStyle: "italic", fontWeight: 300 }}
-              >
-                Admin superpowers unlocked
-              </h3>
-              <ul className="text-sm text-gray-700 space-y-2">
-                <li>• Create Admin & Manager accounts</li>
-                <li>• Configure Excel + logistics workflows</li>
-                <li>• Access every dashboard and report</li>
-              </ul>
-            </div>
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="border border-gray-200 rounded-2xl p-4 bg-white">
-                <p className="text-xs text-gray-500 uppercase">Active Admins</p>
-                <p className="text-3xl text-green-800 font-light mt-2">—</p>
-                <p className="text-xs text-gray-500 mt-1">Data will populate from /user-list</p>
-              </div>
-              <div className="border border-gray-200 rounded-2xl p-4 bg-white">
-                <p className="text-xs text-gray-500 uppercase">Active Managers</p>
-                <p className="text-3xl text-green-800 font-light mt-2">—</p>
-                <p className="text-xs text-gray-500 mt-1">Manage uploads & Excel edits</p>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <p className="text-sm text-slate-400 mb-2">Total Admins</p>
+            <p className="text-3xl font-bold text-cyan-400">{adminCount}</p>
           </div>
-        </section>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <p className="text-sm text-slate-400 mb-2">Total Managers</p>
+            <p className="text-3xl font-bold text-indigo-400">{managerCount}</p>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <p className="text-sm text-slate-400 mb-2">Total Files</p>
+            <p className="text-3xl font-bold text-purple-400">{totalFiles}</p>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <p className="text-sm text-slate-400 mb-2">Total Rows</p>
+            <p className="text-3xl font-bold text-pink-400">{totalRows}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <Link
+            href="/create-user"
+            className="bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-xl p-6 hover:from-cyan-600 hover:to-indigo-600 transition"
+          >
+            <h3 className="text-xl font-semibold mb-2">➕ Create User</h3>
+            <p className="text-sm text-slate-100/80">Create new Admin or Manager accounts</p>
+          </Link>
+          <Link
+            href="/user-list"
+            className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:bg-slate-800 transition"
+          >
+            <h3 className="text-xl font-semibold mb-2">👥 User Directory</h3>
+            <p className="text-sm text-slate-400">View and manage all users</p>
+          </Link>
+          <Link
+            href="/settings"
+            className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:bg-slate-800 transition"
+          >
+            <h3 className="text-xl font-semibold mb-2">⚙️ Settings</h3>
+            <p className="text-sm text-slate-400">Platform configuration</p>
+          </Link>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-800">
+            <h2 className="text-xl font-semibold text-slate-100">All Excel Files</h2>
+            <p className="text-sm text-slate-400 mt-1">View all files created by managers</p>
+          </div>
+
+          {loading ? (
+            <div className="p-8 text-center text-slate-400">Loading files...</div>
+          ) : files.length === 0 ? (
+            <div className="p-8 text-center text-slate-400">
+              <p>No files yet.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-800">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      File Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Owner
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Columns
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Rows
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Updated
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {files.map((file) => (
+                    <tr key={file.id} className="hover:bg-slate-800/50 transition">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-slate-200">{file.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {file.owner ? (
+                          <div>
+                            <div className="text-sm text-slate-200">{file.owner.name}</div>
+                            <div className="text-xs text-slate-400">{file.owner.email}</div>
+                            <div className="text-xs text-slate-500 mt-1">
+                              {file.owner.role === "ADMIN" ? "👑 Admin" : "📊 Manager"}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-slate-400">Unknown</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-400">{file.headers.length}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-400">{file.rowCount}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-400">
+                          {new Date(file.updatedAt).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => handleDownload(file.id, file.name)}
+                          className="text-indigo-400 hover:text-indigo-300 transition"
+                          title="Download"
+                        >
+                          ⬇️ Download
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
 }
-
-

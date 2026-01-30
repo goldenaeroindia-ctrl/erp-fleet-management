@@ -13,7 +13,7 @@ export function useCurrentUser() {
     try {
       setLoading(true);
       setError("");
-      const data = await apiFetch<{ user: UserProfile }>("/auth/me");
+      const data = await apiFetch<{ user: UserProfile }>("/api/auth/me");
       setUser(data.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load profile");

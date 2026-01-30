@@ -75,23 +75,23 @@ export default function Home() {
                 <p className="text-sm sm:text-base text-slate-300/90 max-w-xl leading-relaxed">
                   Import data from Excel, control access by role, and give managers and admins a
                   real‑time view of every vehicle, route, and team—all in one focused workspace.
-                </p>
+          </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <a
+            <a
                   href="/signup"
                   className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-cyan-400 to-indigo-500 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-sm hover:shadow-cyan-500/30 hover:brightness-110 transition-all"
                 >
                   Create free workspace
-                </a>
-                <a
+            </a>
+            <a
                   href="/login"
                   className="inline-flex items-center justify-center rounded-lg border border-slate-700/80 bg-slate-950/60 px-6 py-2.5 text-sm font-medium text-slate-100 hover:bg-slate-900/80 hover:border-slate-500 transition-colors"
-                >
+            >
                   Log in to existing account
-                </a>
-              </div>
+            </a>
+          </div>
 
               <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400">
                 <div className="flex items-center gap-2">
@@ -132,7 +132,7 @@ export default function Home() {
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     Healthy
                   </span>
-                </div>
+            </div>
 
                 <div className="grid grid-cols-2 gap-3 text-[11px]">
                   <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
@@ -157,7 +157,7 @@ export default function Home() {
                     <p className="text-lg font-semibold text-slate-50">6</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">Reviewing live data</p>
                   </div>
-                </div>
+            </div>
 
                 <div
                   id="features"
@@ -179,8 +179,8 @@ export default function Home() {
                     <p className="font-medium text-slate-100">Secure by default</p>
                     <p className="text-slate-400">
                       Server‑side auth, protected routes, and cookies handled for you.
-                    </p>
-                  </div>
+              </p>
+            </div>
                 </div>
               </div>
             </section>

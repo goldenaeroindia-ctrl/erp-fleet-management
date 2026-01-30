@@ -9,15 +9,13 @@ export default function CreateUserPage() {
     name: "",
     email: "",
     password: "",
-    role: "MANAGER",
+    role: "MANAGER" as "ADMIN" | "MANAGER",
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const handleChange = (
-    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -29,63 +27,69 @@ export default function CreateUserPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users/create`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(formData),
       });
+
       const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(data.message || "Unable to create user");
+        throw new Error(data.message || "Failed to create user");
       }
-      setMessage(`${data.user.role} created for ${data.user.email}`);
+
+      setMessage(`${data.user.role} "${data.user.name}" created successfully!`);
       setFormData({ name: "", email: "", password: "", role: "MANAGER" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create user");
+      setError(err instanceof Error ? err.message : "Failed to create user");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white text-black px-4 sm:px-8 py-8" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      <div className="max-w-3xl mx-auto">
-        <header className="mb-8">
-          <p className="text-xs tracking-[0.4em] uppercase text-gray-500" style={{ fontFamily: "Georgia, serif" }}>
-            Admin action
-          </p>
-          <h1 className="text-4xl text-green-800" style={{ fontFamily: "Garamond, serif", fontStyle: "italic", fontWeight: 300 }}>
-            Create user accounts
-          </h1>
-          <p className="text-sm text-gray-600">
-            Managers can sign up on their own. Admins are created from this dashboard only.
-          </p>
-          <Link href="/admin/dashboard" className="inline-flex items-center gap-2 text-xs text-green-700 mt-4">
-            ← Back to Admin Dashboard
+    <div className="min-h-screen bg-slate-950 text-slate-50">
+      <header className="border-b border-slate-800 px-4 sm:px-8 py-6">
+        <div className="max-w-4xl mx-auto">
+          <Link
+            href="/admin/dashboard"
+            className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-300 mb-4 transition"
+          >
+            ← Back to Dashboard
           </Link>
-        </header>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+            Create User Account
+          </h1>
+          <p className="text-slate-400 mt-2">
+            Create new Admin or Manager accounts. Managers can also sign up on their own.
+          </p>
+        </div>
+      </header>
 
-        <div className="bg-gray-50 border-2 border-gray-200 rounded-3xl p-6 sm:p-8">
-          <form className="space-y-5" onSubmit={handleSubmit}>
+      <main className="max-w-4xl mx-auto px-4 sm:px-8 py-8">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 sm:p-8">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-xs text-gray-600 mb-1" htmlFor="name">
-                FULL NAME
+              <label className="block text-sm font-medium text-slate-300 mb-2" htmlFor="name">
+                Full Name
               </label>
               <input
                 id="name"
                 name="name"
+                type="text"
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 text-sm bg-white"
-                placeholder="Priya Mehta"
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                placeholder="John Doe"
               />
             </div>
 
             <div>
-              <label className="block text-xs text-gray-600 mb-1" htmlFor="email">
-                WORK EMAIL
+              <label className="block text-sm font-medium text-slate-300 mb-2" htmlFor="email">
+                Email Address
               </label>
               <input
                 id="email"
@@ -94,14 +98,14 @@ export default function CreateUserPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 text-sm bg-white"
-                placeholder="name@company.com"
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                placeholder="john@company.com"
               />
             </div>
 
             <div>
-              <label className="block text-xs text-gray-600 mb-1" htmlFor="password">
-                TEMP PASSWORD
+              <label className="block text-sm font-medium text-slate-300 mb-2" htmlFor="password">
+                Temporary Password
               </label>
               <input
                 id="password"
@@ -110,42 +114,53 @@ export default function CreateUserPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 text-sm bg-white"
+                minLength={6}
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 placeholder="Minimum 6 characters"
               />
+              <p className="mt-1 text-xs text-slate-400">
+                User should change this password after first login
+              </p>
             </div>
 
             <div>
-              <label className="block text-xs text-gray-600 mb-1" htmlFor="role">
-                ROLE
+              <label className="block text-sm font-medium text-slate-300 mb-2" htmlFor="role">
+                Role
               </label>
               <select
                 id="role"
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 text-sm bg-white"
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
-                <option value="MANAGER">Manager</option>
-                <option value="ADMIN">Admin</option>
+                <option value="MANAGER">📊 Manager - Can upload and edit Excel files</option>
+                <option value="ADMIN">👑 Admin - Full system access</option>
               </select>
             </div>
+
+            {message && (
+              <div className="p-4 bg-green-500/10 border border-green-500/50 rounded-lg text-green-400 text-sm">
+                {message}
+              </div>
+            )}
+
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 px-6 py-3 bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed font-medium tracking-wider text-sm rounded-lg"
+              className="w-full px-6 py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white rounded-lg font-medium hover:from-cyan-600 hover:to-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Creating..." : "Create user"}
+              {loading ? "Creating..." : "Create User"}
             </button>
           </form>
-
-          {message && <p className="mt-4 text-sm text-green-700">{message}</p>}
-          {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
-
-
